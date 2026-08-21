@@ -1,5 +1,5 @@
 {
-  "name": "dsh-model-search",
+  "name": "@ardli-firman/dsh-model-search",
   "version": "1.0.0",
   "description": "Searchable model selector for DeepSeek Harness composer — search models by name instead of scrolling.",
   "type": "module",
@@ -15,12 +15,15 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/deepseek-harness/dsh-model-search.git"
+    "url": "git+https://github.com/ardli-firman/dsh-model-search-plugin.git"
   },
   "bugs": {
-    "url": "https://github.com/deepseek-harness/dsh-model-search/issues"
+    "url": "https://github.com/ardli-firman/dsh-model-search-plugin/issues"
   },
-  "homepage": "https://github.com/deepseek-harness/dsh-model-search#readme",
+  "homepage": "https://github.com/ardli-firman/dsh-model-search-plugin#readme",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
