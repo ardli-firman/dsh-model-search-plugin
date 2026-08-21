@@ -672,8 +672,8 @@ describe('ModelSearch — AI effort selector', () => {
   })
 })
 
-describe('ModelSearch — chip UI after selection', () => {
-  it('renders a chip showing selected model name', () => {
+describe('ModelSearch — effort badge in trigger', () => {
+  it('renders effort badge in trigger when model is selected', () => {
     const directory = createMockDirectory({
       current: { provider: 'openai', model: 'gpt-4o' },
       groups: SAMPLE_GROUPS,
@@ -681,13 +681,12 @@ describe('ModelSearch — chip UI after selection', () => {
     })
     render(React.createElement(ModelSearch, createMockProps({ directory })))
 
-    // Should have the chip with model name
-    const chip = document.querySelector('.dsh-ms-chip')
-    expect(chip).toBeTruthy()
-    expect(chip.textContent).toContain('GPT-4o')
+    const badge = document.querySelector('.dsh-ms-effortBadge')
+    expect(badge).toBeTruthy()
+    expect(badge.textContent).toContain('Med')
   })
 
-  it('chip shows current effort level', () => {
+  it('badge shows current effort level from state', () => {
     const directory = createMockDirectory({
       current: { provider: 'openai', model: 'gpt-4o', effort: 'high' },
       groups: SAMPLE_GROUPS,
@@ -695,46 +694,20 @@ describe('ModelSearch — chip UI after selection', () => {
     })
     render(React.createElement(ModelSearch, createMockProps({ directory })))
 
-    const chip = document.querySelector('.dsh-ms-chip')
-    expect(chip).toBeTruthy()
-    expect(chip.textContent).toContain('High')
+    const badge = document.querySelector('.dsh-ms-effortBadge')
+    expect(badge).toBeTruthy()
+    expect(badge.textContent).toContain('High')
   })
 
-  it('chip shows Medium as default effort', () => {
-    const directory = createMockDirectory({
-      current: { provider: 'openai', model: 'gpt-4o' },
-      groups: SAMPLE_GROUPS,
-      status: 'ready',
-    })
-    render(React.createElement(ModelSearch, createMockProps({ directory })))
-
-    const chip = document.querySelector('.dsh-ms-chip')
-    expect(chip).toBeTruthy()
-    expect(chip.textContent).toContain('Medium')
-  })
-
-  it('does not render chip when no model is selected', () => {
+  it('does not render effort badge when no model is selected', () => {
     const directory = createMockDirectory({ groups: SAMPLE_GROUPS, status: 'ready' })
     render(React.createElement(ModelSearch, createMockProps({ directory })))
 
-    const chip = document.querySelector('.dsh-ms-chip')
-    expect(chip).toBeNull()
+    const badge = document.querySelector('.dsh-ms-effortBadge')
+    expect(badge).toBeNull()
   })
 
-  it('chip has dsh-ms-chip class for styling', () => {
-    const directory = createMockDirectory({
-      current: { provider: 'anthropic', model: 'claude-sonnet-4-20250514' },
-      groups: SAMPLE_GROUPS,
-      status: 'ready',
-    })
-    render(React.createElement(ModelSearch, createMockProps({ directory })))
-
-    const chip = document.querySelector('.dsh-ms-chip')
-    expect(chip).toBeTruthy()
-    expect(chip.className).toContain('dsh-ms-chip')
-  })
-
-  it('chip includes a dot indicator', () => {
+  it('effort badge has dot indicator', () => {
     const directory = createMockDirectory({
       current: { provider: 'openai', model: 'gpt-4o' },
       groups: SAMPLE_GROUPS,
@@ -742,7 +715,24 @@ describe('ModelSearch — chip UI after selection', () => {
     })
     render(React.createElement(ModelSearch, createMockProps({ directory })))
 
-    const dot = document.querySelector('.dsh-ms-chipDot')
+    const dot = document.querySelector('.dsh-ms-effortDot')
     expect(dot).toBeTruthy()
+  })
+
+  it('trigger contains only one model name (no duplication)', () => {
+    const directory = createMockDirectory({
+      current: { provider: 'openai', model: 'gpt-4o' },
+      groups: SAMPLE_GROUPS,
+      status: 'ready',
+    })
+    render(React.createElement(ModelSearch, createMockProps({ directory })))
+
+    const triggerLabel = document.querySelector('.dsh-ms-triggerLabel')
+    expect(triggerLabel.textContent).toBe('GPT-4o')
+
+    // The trigger button should NOT contain a separate chip with model name
+    const trigger = screen.getByRole('button')
+    const chipElements = trigger.querySelectorAll('.dsh-ms-chip')
+    expect(chipElements.length).toBe(0)
   })
 })
