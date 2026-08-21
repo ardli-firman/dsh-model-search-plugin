@@ -1,6 +1,7 @@
 # dsh-model-search
 
 [![powered by dsh](https://img.shields.io/badge/powered_by-dsh-4D6BFE?style=flat-square&logo=deepseek&logoColor=white)](https://github.com/deepseek-ai/deepseek-harness)
+[![GitHub Packages](https://img.shields.io/badge/github-Packages-blue?style=flat-square&logo=github)](https://github.com/ardli-firman/dsh-model-search-plugin/packages)
 
 Searchable model selector for DeepSeek Harness. Replaces the default model dropdown in the composer with a searchable version — no more scrolling through hundreds of models!
 
@@ -15,30 +16,36 @@ Searchable model selector for DeepSeek Harness. Replaces the default model dropd
 
 ## Install
 
-### From GitHub (recommended)
+### From GitHub Packages (recommended)
 
 ```bash
-dsh plugin --profile web add github:deepseek-harness/dsh-model-search
+npm install @ardli-firman/dsh-model-search --registry=https://npm.pkg.github.com
+```
+
+Then link to your DSH profile:
+
+```bash
+dsh plugin --profile web add link:./node_modules/@ardli-firman/dsh-model-search
+```
+
+### From GitHub repo
+
+```bash
+dsh plugin --profile web add github:ardli-firman/dsh-model-search-plugin
 ```
 
 > **Note:** pnpm ≥10 requires build permission for git dependencies. After the first `add` fails, add this to your profile's `pnpm-workspace.yaml`:
 > ```yaml
 > allowBuilds:
->   dsh-model-search: true
+>   @ardli-firman/dsh-model-search: true
 > ```
 > Then re-run the `add` command.
 
 ### From local checkout
 
 ```bash
-git clone https://github.com/deepseek-harness/dsh-model-search.git
-dsh plugin --profile web add ./dsh-model-search
-```
-
-### From npm (if published)
-
-```bash
-dsh plugin --profile web add dsh-model-search
+git clone https://github.com/ardli-firman/dsh-model-search-plugin.git
+dsh plugin --profile web add ./dsh-model-search-plugin
 ```
 
 Then restart DeepSeek Harness:
@@ -50,7 +57,7 @@ dsh --profile web
 ## Uninstall
 
 ```bash
-dsh plugin --profile web remove dsh-model-search
+dsh plugin --profile web remove @ardli-firman/dsh-model-search
 ```
 
 ## How it works
@@ -75,9 +82,9 @@ The selector follows the DeepSeek Harness design system:
 
 ```bash
 # Clone and link for local development
-git clone https://github.com/deepseek-harness/dsh-model-search.git
-cd dsh-model-search
-dsh plugin --profile web add link:./dsh-model-search
+git clone https://github.com/ardli-firman/dsh-model-search-plugin.git
+cd dsh-model-search-plugin
+dsh plugin --profile web add link:.
 
 # Run tests
 npm test
@@ -89,7 +96,7 @@ npm run test:watch
 ### Project structure
 
 ```
-dsh-model-search/
+dsh-model-search-plugin/
 ├── lib/
 │   ├── index.js          # Host side (no-op, pure UI plugin)
 │   └── client.js         # Browser side (ModelSearch component + registration)
@@ -116,6 +123,20 @@ The test suite covers:
 - **ARIA**: `aria-haspopup`, `aria-expanded`, `role="menu"`, `role="menuitemradio"`, `aria-checked`
 - **Styles**: `--dsw-*` token usage, no old `--bg-*/--text-*` tokens
 - **Registration**: slot injection, directory store lifecycle, subscriber notifications
+
+## Release
+
+Releases are automated via GitHub Actions. To publish a new version:
+
+```bash
+# Bump version in package.json
+npm version patch   # or minor / major
+
+# Push with tags
+git push && git push --tags
+```
+
+The CI workflow will automatically publish to GitHub Packages.
 
 ## License
 
