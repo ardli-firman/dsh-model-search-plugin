@@ -1,0 +1,567 @@
+/**
+ * @vitest-environment jsdom
+ *
+ * Tests for the ModelSearch component — the searchable model selector
+ * that replaces the default conversation.input.model seat.
+ */
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import React from 'react'
+import {
+  loadClientPlugin,
+  createMockDirectory,
+  createMockProps,
+  SAMPLE_GROUPS,
+} from './helpers.js'
+
+let ModelSearch
+
+beforeEach(async () => {
+  const plugin = await loadClientPlugin()
+  ModelSearch = plugin.ModelSearch
+})
+
+afterEach(cleanup)
+
+describe('ModelSearch — rendering', () => {
+  it('renders the trigger button with "Select model" when no current selection', () => {
+    const directory = createMockDirectory({ groups: SAMPLE_GROUPS, status: 'ready' })
+    render(React.createElement(ModelSearch, createMockProps({ directory })))
+
+    const trigger = screen.getByRole('button', { name: /select model/i })
+    expect(trigger).toBeTruthy()
+    expect(trigger.textContent).toContain('Select model')
+  })
+
+  it('renders the current model name in the trigger', () => {
+    const directory = createMockDirectory({
+      current: { provider: 'openai', model: 'gpt-4o' },
+      groups: SAMPLE_GROUPS,
+      status: 'ready',
+    })
+    render(React.createElement(ModelSearch, createMockProps({ directory })))
+
+    expect(screen.getByText('GPT-4o')).toBeTruthy()
+  })
+
+  it('renders nothing when available is false', () => {
+    const { container } = render(
+      React.createElement(ModelSearch, createMockProps({ available: false }))
+    )
+    expect(container.innerHTML).toBe('')
+  })
+
+  it('renders nothing when locked and available is false', () => {
+    const { container } = render(
+      React.createElement(ModelSearch, createMockProps({ available: false, locked: true }))
+    )
+    expect(container.innerHTML).toBe('')
+  })
+
+  it('applies the dsh-ms-root class to the container', () => {
+    const directory = createMockDirectory({ groups: SAMPLE_GROUPS, status: 'ready' })
+    const { container } = render(
+      React.createElement(ModelSearch, createMockProps({ directory }))
+    )
+    expect(container.firstChild.className).toContain('dsh-ms-root')
+  })
+
+  it('applies the dsh-ms-trigger class to the trigger button', () => {
+    const directory = createMockDirectory({ groups: SAMPLE_GROUPS, status: 'ready' })
+    render(React.createElement(ModelSearch, createMockProps({ directory })))
+
+    const trigger = screen.getByRole('button')
+    expect(trigger.className).toContain('dsh-ms-trigger')
+  })
+})
+
+describe('ModelSearch — dropdown open/close', () => {
+  it('opens the dropdown on trigger click', () => {
+    const directory = createMockDirectory({ groups: SAMPLE_GROUPS, status: 'ready' })
+    render(React.createElement(ModelSearch, createMockProps({ directory })))
+
+    fireEvent.click(screen.getByRole('button'))
+    expect(screen.getByRole('menu')).toBeTruthy()
+  })
+
+  it('shows the search input when dropdown is open', () => {
+    const directory = createMockDirectory({ groups: SAMPLE_GROUPS, status: 'ready' })
+    render(React.createElement(ModelSearch, createMockProps({ directory })))
+
+    fireEvent.click(screen.getByRole('button'))
+    expect(screen.getByRole('combobox')).toBeTruthy()
+  })
+
+  it('closes the dropdown on Escape key', () => {
+    const directory = createMockDirectory({ groups: SAMPLE_GROUPS, status: 'ready' })
+    render(React.createElement(ModelSearch, createMockProps({ directory })))
+
+    fireEvent.click(screen.getByRole('button'))
+    expect(screen.getByRole('menu')).toBeTruthy()
+
+    fireEvent.keyDown(screen.getByRole('menu').parentElement, { key: 'Escape' })
+    expect(screen.queryByRole('menu')).toBeNull()
+  })
+
+  it('closes on outside click', () => {
+    const directory = createMockDirectory({ groups: SAMPLE_GROUPS, status: 'ready' })
+    const { container } = render(
+      React.createElement('div', null,
+        React.createElement(ModelSearch, createMockProps({ directory }))
+      )
+    )
+
+    fireEvent.click(screen.getByRole('button'))
+    expect(screen.getByRole('menu')).toBeTruthy()
+
+    // Click outside the component
+    fireEvent.mouseDown(container)
+    expect(screen.queryByRole('menu')).toBeNull()
+  })
+
+  it('calls load when opening the dropdown', () => {
+    const load = vi.fn()
+    const directory = createMockDirectory({ groups: SAMPLE_GROUPS, status: 'ready' })
+    render(React.createElement(ModelSearch, createMockProps({ directory, load })))
+
+    fireEvent.click(screen.getByRole('button'))
+    expect(load).toHaveBeenCalled()
+  })
+
+  it('sets aria-expanded to true when open', () => {
+    const directory = createMockDirectory({ groups: SAMPLE_GROUPS, status: 'ready' })
+    render(React.createElement(ModelSearch, createMockProps({ directory })))
+
+    const trigger = screen.getByRole('button')
+    expect(trigger.getAttribute('aria-expanded')).toBe('false')
+
+    fireEvent.click(trigger)
+    expect(trigger.getAttribute('aria-expanded')).toBe('true')
+  })
+})
+
+describe('ModelSearch — model list', () => {
+  it('renders all model groups', () => {
+    const directory = createMockDirectory({ groups: SAMPLE_GROUPS, status: 'ready' })
+    render(React.createElement(ModelSearch, createMockProps({ directory })))
+
+    fireEvent.click(screen.getByRole('button'))
+
+    // Group titles
+    expect(screen.getByText('OpenAI')).toBeTruthy()
+    expect(screen.getByText('Anthropic')).toBeTruthy()
+    expect(screen.getByText('DeepSeek')).toBeTruthy()
+  })
+
+  it('renders all models within groups', () => {
+    const directory = createMockDirectory({ groups: SAMPLE_GROUPS, status: 'ready' })
+    render(React.createElement(ModelSearch, createMockProps({ directory })))
+
+    fireEvent.click(screen.getByRole('button'))
+
+    expect(screen.getByText('GPT-4o')).toBeTruthy()
+    expect(screen.getByText('GPT-4o Mini')).toBeTruthy()
+    expect(screen.getByText('Claude Sonnet 4')).toBeTruthy()
+    expect(screen.getByText('Claude 3.5 Haiku')).toBeTruthy()
+    expect(screen.getByText('DeepSeek-V3')).toBeTruthy()
+    expect(screen.getByText('DeepSeek-R1')).toBeTruthy()
+  })
+
+  it('shows model IDs alongside names', () => {
+    const directory = createMockDirectory({ groups: SAMPLE_GROUPS, status: 'ready' })
+    render(React.createElement(ModelSearch, createMockProps({ directory })))
+
+    fireEvent.click(screen.getByRole('button'))
+
+    expect(screen.getByText('gpt-4o')).toBeTruthy()
+    expect(screen.getByText('deepseek-chat')).toBeTruthy()
+  })
+
+  it('shows a check icon for the currently selected model', () => {
+    const directory = createMockDirectory({
+      current: { provider: 'openai', model: 'gpt-4o' },
+      groups: SAMPLE_GROUPS,
+      status: 'ready',
+    })
+    render(React.createElement(ModelSearch, createMockProps({ directory })))
+
+    fireEvent.click(screen.getByRole('button'))
+
+    // The selected option should have aria-checked="true"
+    const options = screen.getAllByRole('menuitemradio')
+    const selected = options.find(o => o.getAttribute('aria-checked') === 'true')
+    expect(selected).toBeTruthy()
+    expect(selected.textContent).toContain('GPT-4o')
+  })
+
+  it('shows loading state', () => {
+    const directory = createMockDirectory({ status: 'loading', groups: [] })
+    render(React.createElement(ModelSearch, createMockProps({ directory })))
+
+    fireEvent.click(screen.getByRole('button'))
+    expect(screen.getByText('Loading models...')).toBeTruthy()
+  })
+
+  it('shows empty state when no models', () => {
+    const directory = createMockDirectory({ groups: [], status: 'ready' })
+    render(React.createElement(ModelSearch, createMockProps({ directory })))
+
+    fireEvent.click(screen.getByRole('button'))
+    expect(screen.getByText('No models available')).toBeTruthy()
+  })
+
+  it('shows error state with retry button', () => {
+    const load = vi.fn()
+    const directory = createMockDirectory({
+      status: 'error',
+      error: 'Connection failed',
+      groups: SAMPLE_GROUPS,
+    })
+    render(React.createElement(ModelSearch, createMockProps({ directory, load })))
+
+    fireEvent.click(screen.getByRole('button'))
+    expect(screen.getByText('Connection failed')).toBeTruthy()
+
+    const retryBtn = screen.getByText('Retry')
+    fireEvent.click(retryBtn)
+    expect(load).toHaveBeenCalled()
+  })
+})
+
+describe('ModelSearch — search filtering', () => {
+  it('filters models by name', () => {
+    const directory = createMockDirectory({ groups: SAMPLE_GROUPS, status: 'ready' })
+    render(React.createElement(ModelSearch, createMockProps({ directory })))
+
+    fireEvent.click(screen.getByRole('button'))
+
+    const input = screen.getByRole('combobox')
+    fireEvent.change(input, { target: { value: 'claude' } })
+
+    // Only Anthropic models should be visible
+    expect(screen.getByText('Claude Sonnet 4')).toBeTruthy()
+    expect(screen.getByText('Claude 3.5 Haiku')).toBeTruthy()
+    // OpenAI models should be filtered out
+    expect(screen.queryByText('GPT-4o')).toBeNull()
+  })
+
+  it('filters models by model ID', () => {
+    const directory = createMockDirectory({ groups: SAMPLE_GROUPS, status: 'ready' })
+    render(React.createElement(ModelSearch, createMockProps({ directory })))
+
+    fireEvent.click(screen.getByRole('button'))
+
+    const input = screen.getByRole('combobox')
+    fireEvent.change(input, { target: { value: 'gpt-4o-mini' } })
+
+    expect(screen.getByText('GPT-4o Mini')).toBeTruthy()
+    expect(screen.queryByText('GPT-4o')).toBeNull() // exact ID doesn't match gpt-4o
+  })
+
+  it('filters models by provider name', () => {
+    const directory = createMockDirectory({ groups: SAMPLE_GROUPS, status: 'ready' })
+    render(React.createElement(ModelSearch, createMockProps({ directory })))
+
+    fireEvent.click(screen.getByRole('button'))
+
+    const input = screen.getByRole('combobox')
+    fireEvent.change(input, { target: { value: 'deepseek' } })
+
+    expect(screen.getByText('DeepSeek-V3')).toBeTruthy()
+    expect(screen.getByText('DeepSeek-R1')).toBeTruthy()
+    expect(screen.queryByText('GPT-4o')).toBeNull()
+  })
+
+  it('shows "no models matching" when search has no results', () => {
+    const directory = createMockDirectory({ groups: SAMPLE_GROUPS, status: 'ready' })
+    render(React.createElement(ModelSearch, createMockProps({ directory })))
+
+    fireEvent.click(screen.getByRole('button'))
+
+    const input = screen.getByRole('combobox')
+    fireEvent.change(input, { target: { value: 'nonexistent-model-xyz' } })
+
+    expect(screen.getByText('No models matching "nonexistent-model-xyz"')).toBeTruthy()
+  })
+
+  it('is case-insensitive', () => {
+    const directory = createMockDirectory({ groups: SAMPLE_GROUPS, status: 'ready' })
+    render(React.createElement(ModelSearch, createMockProps({ directory })))
+
+    fireEvent.click(screen.getByRole('button'))
+
+    const input = screen.getByRole('combobox')
+    fireEvent.change(input, { target: { value: 'CLAUDE' } })
+
+    expect(screen.getByText('Claude Sonnet 4')).toBeTruthy()
+  })
+
+  it('shows placeholder with total model count', () => {
+    const directory = createMockDirectory({ groups: SAMPLE_GROUPS, status: 'ready' })
+    render(React.createElement(ModelSearch, createMockProps({ directory })))
+
+    fireEvent.click(screen.getByRole('button'))
+
+    const input = screen.getByRole('combobox')
+    expect(input.placeholder).toBe('Search 6 models...')
+  })
+})
+
+describe('ModelSearch — model selection', () => {
+  it('calls select with provider and model ID on click', async () => {
+    const select = vi.fn().mockResolvedValue(true)
+    const directory = createMockDirectory({ groups: SAMPLE_GROUPS, status: 'ready' })
+    render(React.createElement(ModelSearch, createMockProps({ directory, select })))
+
+    fireEvent.click(screen.getByRole('button'))
+
+    // Click on DeepSeek-V3
+    const option = screen.getAllByRole('menuitemradio').find(
+      o => o.textContent.includes('DeepSeek-V3')
+    )
+    fireEvent.click(option)
+
+    await waitFor(() => {
+      expect(select).toHaveBeenCalledWith({
+        provider: 'deepseek',
+        model: 'deepseek-chat',
+      })
+    })
+  })
+
+  it('closes the dropdown after successful selection', async () => {
+    const select = vi.fn().mockResolvedValue(true)
+    const directory = createMockDirectory({ groups: SAMPLE_GROUPS, status: 'ready' })
+    render(React.createElement(ModelSearch, createMockProps({ directory, select })))
+
+    fireEvent.click(screen.getByRole('button'))
+    expect(screen.getByRole('menu')).toBeTruthy()
+
+    const option = screen.getAllByRole('menuitemradio').find(
+      o => o.textContent.includes('GPT-4o')
+    )
+    fireEvent.click(option)
+
+    await waitFor(() => {
+      expect(screen.queryByRole('menu')).toBeNull()
+    })
+  })
+
+  it('keeps the dropdown open when selection is rejected', async () => {
+    const select = vi.fn().mockResolvedValue(false)
+    const directory = createMockDirectory({ groups: SAMPLE_GROUPS, status: 'ready' })
+    render(React.createElement(ModelSearch, createMockProps({ directory, select })))
+
+    fireEvent.click(screen.getByRole('button'))
+
+    const option = screen.getAllByRole('menuitemradio').find(
+      o => o.textContent.includes('GPT-4o')
+    )
+    fireEvent.click(option)
+
+    await waitFor(() => {
+      expect(select).toHaveBeenCalled()
+    })
+    // Dropdown should still be open
+    expect(screen.getByRole('menu')).toBeTruthy()
+  })
+
+  it('does not call select when locked', () => {
+    const select = vi.fn()
+    const directory = createMockDirectory({ groups: SAMPLE_GROUPS, status: 'ready' })
+    render(React.createElement(ModelSearch, createMockProps({ directory, select, locked: true })))
+
+    // Trigger should be disabled
+    const trigger = screen.getByRole('button')
+    expect(trigger.disabled).toBe(true)
+  })
+})
+
+describe('ModelSearch — keyboard navigation', () => {
+  it('navigates options with ArrowDown/ArrowUp', () => {
+    const directory = createMockDirectory({ groups: SAMPLE_GROUPS, status: 'ready' })
+    render(React.createElement(ModelSearch, createMockProps({ directory })))
+
+    fireEvent.click(screen.getByRole('button'))
+
+    // Query fresh options after render
+    const firstOption = screen.getAllByRole('menuitemradio')[0]
+    firstOption.focus()
+    expect(document.activeElement).toBe(firstOption)
+
+    // ArrowDown should move focus to a different option
+    fireEvent.keyDown(firstOption, { key: 'ArrowDown' })
+    expect(document.activeElement).not.toBe(firstOption)
+    expect(document.activeElement.getAttribute('role')).toBe('menuitemradio')
+  })
+
+  it('wraps focus from last to first on ArrowDown', () => {
+    const directory = createMockDirectory({ groups: SAMPLE_GROUPS, status: 'ready' })
+    render(React.createElement(ModelSearch, createMockProps({ directory })))
+
+    fireEvent.click(screen.getByRole('button'))
+
+    const options = screen.getAllByRole('menuitemradio')
+    const firstOption = options[0]
+    const lastOption = options[options.length - 1]
+    lastOption.focus()
+
+    fireEvent.keyDown(lastOption, { key: 'ArrowDown' })
+    // After wrapping, focus should be on a different option than the last
+    expect(document.activeElement).not.toBe(lastOption)
+    expect(document.activeElement.getAttribute('role')).toBe('menuitemradio')
+  })
+
+  it('selects model on Enter key', async () => {
+    const select = vi.fn().mockResolvedValue(true)
+    const directory = createMockDirectory({ groups: SAMPLE_GROUPS, status: 'ready' })
+    render(React.createElement(ModelSearch, createMockProps({ directory, select })))
+
+    fireEvent.click(screen.getByRole('button'))
+
+    const firstOption = screen.getAllByRole('menuitemradio')[0]
+    firstOption.focus()
+    fireEvent.keyDown(firstOption, { key: 'Enter' })
+
+    await waitFor(() => {
+      expect(select).toHaveBeenCalled()
+    })
+  })
+
+  it('selects model on Space key', async () => {
+    const select = vi.fn().mockResolvedValue(true)
+    const directory = createMockDirectory({ groups: SAMPLE_GROUPS, status: 'ready' })
+    render(React.createElement(ModelSearch, createMockProps({ directory, select })))
+
+    fireEvent.click(screen.getByRole('button'))
+
+    const firstOption = screen.getAllByRole('menuitemradio')[0]
+    firstOption.focus()
+    fireEvent.keyDown(firstOption, { key: ' ' })
+
+    await waitFor(() => {
+      expect(select).toHaveBeenCalled()
+    })
+  })
+
+  it('moves focus from search input to list on ArrowDown', () => {
+    const directory = createMockDirectory({ groups: SAMPLE_GROUPS, status: 'ready' })
+    render(React.createElement(ModelSearch, createMockProps({ directory })))
+
+    fireEvent.click(screen.getByRole('button'))
+
+    const input = screen.getByRole('combobox')
+    input.focus()
+    expect(document.activeElement).toBe(input)
+
+    fireEvent.keyDown(input, { key: 'ArrowDown' })
+    // Focus should move to an option
+    const options = screen.getAllByRole('menuitemradio')
+    expect(options.some(o => o === document.activeElement)).toBe(true)
+  })
+})
+
+describe('ModelSearch — ARIA attributes', () => {
+  it('trigger has aria-haspopup="menu"', () => {
+    const directory = createMockDirectory({ groups: SAMPLE_GROUPS, status: 'ready' })
+    render(React.createElement(ModelSearch, createMockProps({ directory })))
+
+    const trigger = screen.getByRole('button')
+    expect(trigger.getAttribute('aria-haspopup')).toBe('menu')
+  })
+
+  it('trigger has aria-expanded reflecting open state', () => {
+    const directory = createMockDirectory({ groups: SAMPLE_GROUPS, status: 'ready' })
+    render(React.createElement(ModelSearch, createMockProps({ directory })))
+
+    const trigger = screen.getByRole('button')
+    expect(trigger.getAttribute('aria-expanded')).toBe('false')
+
+    fireEvent.click(trigger)
+    expect(trigger.getAttribute('aria-expanded')).toBe('true')
+  })
+
+  it('dropdown menu has role="menu"', () => {
+    const directory = createMockDirectory({ groups: SAMPLE_GROUPS, status: 'ready' })
+    render(React.createElement(ModelSearch, createMockProps({ directory })))
+
+    fireEvent.click(screen.getByRole('button'))
+    const menu = screen.getByRole('menu')
+    expect(menu).toBeTruthy()
+  })
+
+  it('options have role="menuitemradio" and aria-checked', () => {
+    const directory = createMockDirectory({
+      current: { provider: 'openai', model: 'gpt-4o' },
+      groups: SAMPLE_GROUPS,
+      status: 'ready',
+    })
+    render(React.createElement(ModelSearch, createMockProps({ directory })))
+
+    fireEvent.click(screen.getByRole('button'))
+
+    const options = screen.getAllByRole('menuitemradio')
+    expect(options.length).toBe(6) // 6 models total
+
+    // The selected one should have aria-checked="true"
+    const selected = options.find(o => o.getAttribute('aria-checked') === 'true')
+    expect(selected).toBeTruthy()
+    expect(selected.textContent).toContain('GPT-4o')
+  })
+
+  it('search input has role="combobox" and aria-label', () => {
+    const directory = createMockDirectory({ groups: SAMPLE_GROUPS, status: 'ready' })
+    render(React.createElement(ModelSearch, createMockProps({ directory })))
+
+    fireEvent.click(screen.getByRole('button'))
+
+    const input = screen.getByRole('combobox')
+    expect(input.getAttribute('aria-label')).toBe('Search models')
+  })
+
+  it('groups have role="group" with aria-label', () => {
+    const directory = createMockDirectory({ groups: SAMPLE_GROUPS, status: 'ready' })
+    render(React.createElement(ModelSearch, createMockProps({ directory })))
+
+    fireEvent.click(screen.getByRole('button'))
+
+    const groups = screen.getAllByRole('group')
+    expect(groups.length).toBe(3)
+    expect(groups[0].getAttribute('aria-label')).toBe('OpenAI')
+    expect(groups[1].getAttribute('aria-label')).toBe('Anthropic')
+    expect(groups[2].getAttribute('aria-label')).toBe('DeepSeek')
+  })
+})
+
+describe('ModelSearch — styles use harness tokens', () => {
+  it('injects a stylesheet with dsh-ms- classes', async () => {
+    const directory = createMockDirectory({ groups: SAMPLE_GROUPS, status: 'ready' })
+    render(React.createElement(ModelSearch, createMockProps({ directory })))
+
+    // The component should inject a <style> tag
+    const style = document.getElementById('dsh-model-search-style')
+    expect(style).toBeTruthy()
+    expect(style.textContent).toContain('dsh-ms-trigger')
+    expect(style.textContent).toContain('dsh-ms-menu')
+  })
+
+  it('stylesheet uses --dsw-* design tokens (not old --bg-*/--text-* tokens)', () => {
+    const directory = createMockDirectory({ groups: SAMPLE_GROUPS, status: 'ready' })
+    render(React.createElement(ModelSearch, createMockProps({ directory })))
+
+    const style = document.getElementById('dsh-model-search-style')
+    const css = style.textContent
+
+    // Should use new tokens
+    expect(css).toContain('--dsw-alias-label-secondary')
+    expect(css).toContain('--dsw-specific-menu')
+    expect(css).toContain('--dsw-shadow-lv3')
+    expect(css).toContain('--dsw-alias-interactive-bg-hover')
+    expect(css).toContain('--dsw-alias-border-inverted')
+
+    // Should NOT use old tokens
+    expect(css).not.toContain('--bg-secondary')
+    expect(css).not.toContain('--text-primary')
+    expect(css).not.toContain('--border-default')
+  })
+})

@@ -1,0 +1,5 @@
+# dsh-model-search plugin: inserts its plugin row into the web profile roster.
+# Install with: dsh plugin --profile web add ./model-search-plugin
+- insert:
+    - id: model-search
+      name: dsh-model-search

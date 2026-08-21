@@ -1,0 +1,67 @@
+{
+  "name": "dsh-model-search",
+  "version": "1.0.0",
+  "description": "Searchable model selector for DeepSeek Harness composer — search models by name instead of scrolling.",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": {
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "default": "./lib/client.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/deepseek-harness/dsh-model-search.git"
+  },
+  "bugs": {
+    "url": "https://github.com/deepseek-harness/dsh-model-search/issues"
+  },
+  "homepage": "https://github.com/deepseek-harness/dsh-model-search#readme",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-runtime",
+        "@deepseek-ai/dsh-client-connection",
+        "@deepseek-ai/dsh-client-ui-conversation"
+      ],
+      "platform": "web"
+    }
+  },
+  "files": [
+    "lib",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepare": "echo 'dsh-model-search: plain JS plugin, no build step required'"
+  },
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "model-selection",
+    "search",
+    "ai",
+    "llm"
+  ],
+  "license": "MIT",
+  "peerDependencies": {
+    "react": "^18.2.0"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.0",
+    "@testing-library/react": "^16.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "jsdom": "^29.0.0"
+  }
+}
