@@ -41,7 +41,12 @@ describe('ModelSearch — rendering', () => {
     })
     render(React.createElement(ModelSearch, createMockProps({ directory })))
 
-    expect(screen.getByText('GPT-4o')).toBeTruthy()
+    // Model name appears in trigger + chip, so use getAllByText
+    const matches = screen.getAllByText('GPT-4o')
+    expect(matches.length).toBeGreaterThanOrEqual(1)
+    // The trigger label should contain it
+    const triggerLabel = document.querySelector('.dsh-ms-triggerLabel')
+    expect(triggerLabel.textContent).toBe('GPT-4o')
   })
 
   it('renders nothing when available is false', () => {
@@ -325,6 +330,7 @@ describe('ModelSearch — model selection', () => {
       expect(select).toHaveBeenCalledWith({
         provider: 'deepseek',
         model: 'deepseek-chat',
+        effort: 'medium',
       })
     })
   })
@@ -563,5 +569,180 @@ describe('ModelSearch — styles use harness tokens', () => {
     expect(css).not.toContain('--bg-secondary')
     expect(css).not.toContain('--text-primary')
     expect(css).not.toContain('--border-default')
+  })
+})
+
+describe('ModelSearch — AI effort selector', () => {
+  it('renders effort buttons when dropdown is open', () => {
+    const directory = createMockDirectory({ groups: SAMPLE_GROUPS, status: 'ready' })
+    render(React.createElement(ModelSearch, createMockProps({ directory })))
+
+    fireEvent.click(screen.getByRole('button'))
+
+    // Should have effort section with 4 buttons
+    const effortButtons = screen.getAllByRole('radio')
+    expect(effortButtons.length).toBe(4)
+    expect(screen.getByText('Low')).toBeTruthy()
+    expect(screen.getByText('Medium')).toBeTruthy()
+    expect(screen.getByText('High')).toBeTruthy()
+    expect(screen.getByText('Max')).toBeTruthy()
+  })
+
+  it('defaults effort to Medium', () => {
+    const directory = createMockDirectory({ groups: SAMPLE_GROUPS, status: 'ready' })
+    render(React.createElement(ModelSearch, createMockProps({ directory })))
+
+    fireEvent.click(screen.getByRole('button'))
+
+    const mediumBtn = screen.getAllByRole('radio').find(
+      b => b.textContent === 'Medium'
+    )
+    expect(mediumBtn.getAttribute('aria-checked')).toBe('true')
+  })
+
+  it('changes effort level on button click', () => {
+    const directory = createMockDirectory({ groups: SAMPLE_GROUPS, status: 'ready' })
+    render(React.createElement(ModelSearch, createMockProps({ directory })))
+
+    fireEvent.click(screen.getByRole('button'))
+
+    const highBtn = screen.getAllByRole('radio').find(
+      b => b.textContent === 'High'
+    )
+    fireEvent.click(highBtn)
+
+    expect(highBtn.getAttribute('aria-checked')).toBe('true')
+    // Medium should no longer be checked
+    const mediumBtn = screen.getAllByRole('radio').find(
+      b => b.textContent === 'Medium'
+    )
+    expect(mediumBtn.getAttribute('aria-checked')).toBe('false')
+  })
+
+  it('passes effort to select callback', async () => {
+    const select = vi.fn().mockResolvedValue(true)
+    const directory = createMockDirectory({ groups: SAMPLE_GROUPS, status: 'ready' })
+    render(React.createElement(ModelSearch, createMockProps({ directory, select })))
+
+    fireEvent.click(screen.getByRole('button'))
+
+    // Select Max effort
+    const maxBtn = screen.getAllByRole('radio').find(
+      b => b.textContent === 'Max'
+    )
+    fireEvent.click(maxBtn)
+
+    // Wait for effort state to propagate
+    await waitFor(() => {
+      expect(maxBtn.getAttribute('aria-checked')).toBe('true')
+    })
+
+    // Now select a model
+    const option = screen.getAllByRole('menuitemradio').find(
+      o => o.textContent.includes('GPT-4o')
+    )
+    fireEvent.click(option)
+
+    await waitFor(() => {
+      expect(select).toHaveBeenCalledWith({
+        provider: 'openai',
+        model: 'gpt-4o',
+        effort: 'max',
+      })
+    })
+  })
+
+  it('renders effort label text', () => {
+    const directory = createMockDirectory({ groups: SAMPLE_GROUPS, status: 'ready' })
+    render(React.createElement(ModelSearch, createMockProps({ directory })))
+
+    fireEvent.click(screen.getByRole('button'))
+
+    expect(screen.getByText('Reasoning effort')).toBeTruthy()
+  })
+
+  it('effort buttons have correct ARIA roles', () => {
+    const directory = createMockDirectory({ groups: SAMPLE_GROUPS, status: 'ready' })
+    render(React.createElement(ModelSearch, createMockProps({ directory })))
+
+    fireEvent.click(screen.getByRole('button'))
+
+    const effortGroup = screen.getByRole('radiogroup', { name: /reasoning effort/i })
+    expect(effortGroup).toBeTruthy()
+  })
+})
+
+describe('ModelSearch — chip UI after selection', () => {
+  it('renders a chip showing selected model name', () => {
+    const directory = createMockDirectory({
+      current: { provider: 'openai', model: 'gpt-4o' },
+      groups: SAMPLE_GROUPS,
+      status: 'ready',
+    })
+    render(React.createElement(ModelSearch, createMockProps({ directory })))
+
+    // Should have the chip with model name
+    const chip = document.querySelector('.dsh-ms-chip')
+    expect(chip).toBeTruthy()
+    expect(chip.textContent).toContain('GPT-4o')
+  })
+
+  it('chip shows current effort level', () => {
+    const directory = createMockDirectory({
+      current: { provider: 'openai', model: 'gpt-4o', effort: 'high' },
+      groups: SAMPLE_GROUPS,
+      status: 'ready',
+    })
+    render(React.createElement(ModelSearch, createMockProps({ directory })))
+
+    const chip = document.querySelector('.dsh-ms-chip')
+    expect(chip).toBeTruthy()
+    expect(chip.textContent).toContain('High')
+  })
+
+  it('chip shows Medium as default effort', () => {
+    const directory = createMockDirectory({
+      current: { provider: 'openai', model: 'gpt-4o' },
+      groups: SAMPLE_GROUPS,
+      status: 'ready',
+    })
+    render(React.createElement(ModelSearch, createMockProps({ directory })))
+
+    const chip = document.querySelector('.dsh-ms-chip')
+    expect(chip).toBeTruthy()
+    expect(chip.textContent).toContain('Medium')
+  })
+
+  it('does not render chip when no model is selected', () => {
+    const directory = createMockDirectory({ groups: SAMPLE_GROUPS, status: 'ready' })
+    render(React.createElement(ModelSearch, createMockProps({ directory })))
+
+    const chip = document.querySelector('.dsh-ms-chip')
+    expect(chip).toBeNull()
+  })
+
+  it('chip has dsh-ms-chip class for styling', () => {
+    const directory = createMockDirectory({
+      current: { provider: 'anthropic', model: 'claude-sonnet-4-20250514' },
+      groups: SAMPLE_GROUPS,
+      status: 'ready',
+    })
+    render(React.createElement(ModelSearch, createMockProps({ directory })))
+
+    const chip = document.querySelector('.dsh-ms-chip')
+    expect(chip).toBeTruthy()
+    expect(chip.className).toContain('dsh-ms-chip')
+  })
+
+  it('chip includes a dot indicator', () => {
+    const directory = createMockDirectory({
+      current: { provider: 'openai', model: 'gpt-4o' },
+      groups: SAMPLE_GROUPS,
+      status: 'ready',
+    })
+    render(React.createElement(ModelSearch, createMockProps({ directory })))
+
+    const dot = document.querySelector('.dsh-ms-chipDot')
+    expect(dot).toBeTruthy()
   })
 })
