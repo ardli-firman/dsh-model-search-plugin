@@ -13,6 +13,40 @@ Searchable model selector for DeepSeek Harness. Replaces the default model dropd
 - ⚡ **Fast** — Loads models via the existing session API
 - 🎨 **Theme-aware** — Uses DeepSeek Harness design tokens (`--dsw-*`), adapts to light/dark mode
 - ♿ **Accessible** — Full keyboard navigation, ARIA attributes, focus management
+- 🕘 **Recent models** — Quickly jump back to your last-used models
+
+## Screenshots
+
+<table>
+  <tr>
+    <td align="center" valign="top" width="33%">
+      <img src="docs/screenshots/composer.png" alt="Trigger chip in the composer" width="300"><br/>
+      <sub>Trigger chip in the composer</sub>
+    </td>
+    <td align="center" valign="top" width="33%">
+      <img src="docs/screenshots/menu-open.png" alt="Open menu with Recent section" width="300"><br/>
+      <sub>Recent section, provider groups, effort selector</sub>
+    </td>
+    <td align="center" valign="top" width="33%">
+      <img src="docs/screenshots/search.png" alt="Search filtering models" width="300"><br/>
+      <sub>Type to filter by name, ID, or provider</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" valign="top" width="33%">
+      <img src="docs/screenshots/collapsed.png" alt="Collapsed provider group" width="300"><br/>
+      <sub>Collapse groups you don't need</sub>
+    </td>
+    <td align="center" valign="top" width="33%">
+      <img src="docs/screenshots/focus.png" alt="Keyboard focus ring on an option" width="300"><br/>
+      <sub>Full keyboard navigation</sub>
+    </td>
+    <td align="center" valign="top" width="33%">
+      <img src="docs/screenshots/menu-light.png" alt="Menu in light theme" width="300"><br/>
+      <sub>Adapts to the light theme</sub>
+    </td>
+  </tr>
+</table>
 
 ## Install
 
@@ -91,6 +125,10 @@ npm test
 
 # Watch mode
 npm run test:watch
+
+# Rebuild the screenshot demo page + capture README screenshots
+# (needs a Playwright Chromium install; see scripts/ for details)
+node scripts/build-demo.mjs && node scripts/screenshot.mjs
 ```
 
 ### Project structure
