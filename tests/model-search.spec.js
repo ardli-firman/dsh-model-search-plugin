@@ -5,7 +5,7 @@
  * that replaces the default conversation.input.model seat.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import React from 'react'
 import {
   loadClientPlugin,
@@ -204,7 +204,9 @@ describe('ModelSearch — model list', () => {
     render(React.createElement(ModelSearch, createMockProps({ directory })))
 
     fireEvent.click(screen.getByRole('button'))
-    expect(screen.getByText('Loading models...')).toBeTruthy()
+    // Skeleton shimmer rows instead of plain text
+    expect(document.querySelector('.dsh-ms-skeleton')).toBeTruthy()
+    expect(document.querySelectorAll('.dsh-ms-skelRow').length).toBeGreaterThanOrEqual(3)
   })
 
   it('shows empty state when no models', () => {
@@ -464,6 +466,49 @@ describe('ModelSearch — keyboard navigation', () => {
     // Focus should move to an option
     const options = screen.getAllByRole('menuitemradio')
     expect(options.some(o => o === document.activeElement)).toBe(true)
+  })
+
+  it('jumps to last option on End key', () => {
+    const directory = createMockDirectory({ groups: SAMPLE_GROUPS, status: 'ready' })
+    render(React.createElement(ModelSearch, createMockProps({ directory })))
+
+    fireEvent.click(screen.getByRole('button'))
+    const options = screen.getAllByRole('menuitemradio')
+    options[0].focus()
+
+    fireEvent.keyDown(options[0], { key: 'End' })
+    expect(document.activeElement).toBe(options[options.length - 1])
+  })
+
+  it('jumps to first option on Home key', () => {
+    const directory = createMockDirectory({ groups: SAMPLE_GROUPS, status: 'ready' })
+    render(React.createElement(ModelSearch, createMockProps({ directory })))
+
+    fireEvent.click(screen.getByRole('button'))
+    const options = screen.getAllByRole('menuitemradio')
+    options[options.length - 1].focus()
+
+    fireEvent.keyDown(options[options.length - 1], { key: 'Home' })
+    expect(document.activeElement).toBe(options[0])
+  })
+
+  it('moves up a page on PageUp and down on PageDown', () => {
+    const directory = createMockDirectory({ groups: SAMPLE_GROUPS, status: 'ready' })
+    render(React.createElement(ModelSearch, createMockProps({ directory })))
+
+    fireEvent.click(screen.getByRole('button'))
+    const options = screen.getAllByRole('menuitemradio')
+    // Focus the last option, PageUp should move up by 6
+    options[options.length - 1].focus()
+    fireEvent.keyDown(options[options.length - 1], { key: 'PageUp' })
+    const afterPageUp = document.activeElement
+    expect(afterPageUp).not.toBe(options[options.length - 1])
+
+    // Focus first, PageDown should move down by 6
+    options[0].focus()
+    fireEvent.keyDown(options[0], { key: 'PageDown' })
+    const afterPageDown = document.activeElement
+    expect(afterPageDown).not.toBe(options[0])
   })
 })
 
@@ -734,5 +779,147 @@ describe('ModelSearch — effort badge in trigger', () => {
     const trigger = screen.getByRole('button')
     const chipElements = trigger.querySelectorAll('.dsh-ms-chip')
     expect(chipElements.length).toBe(0)
+  })
+})
+
+describe('ModelSearch — recent models', () => {
+  it('shows a Recent section when localStorage has selections', () => {
+    window.localStorage.setItem('dsh-ms-recent', JSON.stringify([
+      { provider: 'anthropic', model: 'claude-sonnet-4-20250514' },
+    ]))
+    const directory = createMockDirectory({ groups: SAMPLE_GROUPS, status: 'ready' })
+    render(React.createElement(ModelSearch, createMockProps({ directory })))
+
+    fireEvent.click(screen.getByRole('button'))
+
+    // Recent group should appear first
+    const recentGroup = screen.getAllByRole('group')[0]
+    expect(recentGroup.getAttribute('aria-label')).toBe('Recent')
+    // Model name should appear in the Recent section
+    expect(within(recentGroup).getByText('Claude Sonnet 4')).toBeTruthy()
+  })
+
+  it('hides Recent section while searching', () => {
+    window.localStorage.setItem('dsh-ms-recent', JSON.stringify([
+      { provider: 'anthropic', model: 'claude-sonnet-4-20250514' },
+    ]))
+    const directory = createMockDirectory({ groups: SAMPLE_GROUPS, status: 'ready' })
+    render(React.createElement(ModelSearch, createMockProps({ directory })))
+
+    fireEvent.click(screen.getByRole('button'))
+    const input = screen.getByRole('combobox')
+    fireEvent.change(input, { target: { value: 'gpt' } })
+
+    const groups = screen.getAllByRole('group')
+    // Recent hidden while query is active
+    expect(groups.some(g => g.getAttribute('aria-label') === 'Recent')).toBe(false)
+    expect(screen.getByText('GPT-4o')).toBeTruthy()
+  })
+
+  it('selecting a model writes to localStorage recent list', async () => {
+    const select = vi.fn().mockResolvedValue(true)
+    const directory = createMockDirectory({ groups: SAMPLE_GROUPS, status: 'ready' })
+    render(React.createElement(ModelSearch, createMockProps({ directory, select })))
+
+    fireEvent.click(screen.getByRole('button'))
+    const option = screen.getAllByRole('menuitemradio').find(o => o.textContent.includes('DeepSeek-V3'))
+    fireEvent.click(option)
+
+    await waitFor(() => {
+      const raw = window.localStorage.getItem('dsh-ms-recent')
+      expect(raw).toBeTruthy()
+      const parsed = JSON.parse(raw)
+      expect(parsed[0]).toEqual({ provider: 'deepseek', model: 'deepseek-chat' })
+    })
+  })
+})
+
+describe('ModelSearch — group collapse', () => {
+  it('collapses and expands a provider group on header click', () => {
+    const directory = createMockDirectory({ groups: SAMPLE_GROUPS, status: 'ready' })
+    render(React.createElement(ModelSearch, createMockProps({ directory })))
+
+    fireEvent.click(screen.getByRole('button'))
+    expect(screen.getAllByRole('menuitemradio').length).toBe(6)
+
+    // Click the OpenAI group header
+    const openaiHeader = screen.getByRole('button', { name: /OpenAI/i })
+    fireEvent.click(openaiHeader)
+
+    // 4 options left (OpenAI's 2 hidden)
+    expect(screen.getAllByRole('menuitemradio').length).toBe(4)
+    expect(screen.queryByText('GPT-4o')).toBeNull()
+
+    // Click again to expand
+    fireEvent.click(openaiHeader)
+    expect(screen.getAllByRole('menuitemradio').length).toBe(6)
+  })
+
+  it('group headers have aria-expanded', () => {
+    const directory = createMockDirectory({ groups: SAMPLE_GROUPS, status: 'ready' })
+    render(React.createElement(ModelSearch, createMockProps({ directory })))
+
+    fireEvent.click(screen.getByRole('button'))
+    const header = screen.getByRole('button', { name: /OpenAI/i })
+    expect(header.getAttribute('aria-expanded')).toBe('true')
+    fireEvent.click(header)
+    expect(header.getAttribute('aria-expanded')).toBe('false')
+  })
+
+  it('keeps group headers when every group is collapsed so they can re-expand', () => {
+    const directory = createMockDirectory({ groups: SAMPLE_GROUPS, status: 'ready' })
+    render(React.createElement(ModelSearch, createMockProps({ directory })))
+
+    fireEvent.click(screen.getByRole('button'))
+
+    // Collapse all three provider groups
+    ;['OpenAI', 'Anthropic', 'DeepSeek'].forEach(name => {
+      fireEvent.click(screen.getByRole('button', { name: new RegExp(name) }))
+    })
+
+    // No model rows visible…
+    expect(screen.queryAllByRole('menuitemradio').length).toBe(0)
+    // …but headers must remain — NOT the "No models available" empty state
+    expect(screen.queryByText('No models available')).toBeNull()
+    ;['OpenAI', 'Anthropic', 'DeepSeek'].forEach(name => {
+      expect(screen.getByRole('button', { name: new RegExp(name) })).toBeTruthy()
+    })
+
+    // Re-expanding a group brings its models back
+    fireEvent.click(screen.getByRole('button', { name: /OpenAI/i }))
+    expect(screen.getByText('GPT-4o')).toBeTruthy()
+    expect(screen.getAllByRole('menuitemradio').length).toBe(2)
+  })
+})
+
+describe('ModelSearch — clear button & result count', () => {
+  it('shows a clear button when query is non-empty', () => {
+    const directory = createMockDirectory({ groups: SAMPLE_GROUPS, status: 'ready' })
+    render(React.createElement(ModelSearch, createMockProps({ directory })))
+
+    fireEvent.click(screen.getByRole('button'))
+    const input = screen.getByRole('combobox')
+    fireEvent.change(input, { target: { value: 'claude' } })
+
+    const clearBtn = screen.getByRole('button', { name: /clear search/i })
+    expect(clearBtn).toBeTruthy()
+
+    // Clicking clears the query
+    fireEvent.click(clearBtn)
+    expect(input.value).toBe('')
+  })
+
+  it('shows filtered count in footer', () => {
+    const directory = createMockDirectory({ groups: SAMPLE_GROUPS, status: 'ready' })
+    render(React.createElement(ModelSearch, createMockProps({ directory })))
+
+    fireEvent.click(screen.getByRole('button'))
+    // No query: total count
+    expect(screen.getByText('6 models')).toBeTruthy()
+
+    const input = screen.getByRole('combobox')
+    fireEvent.change(input, { target: { value: 'claude' } })
+    // Filtered count
+    expect(screen.getByText('2 of 6 models')).toBeTruthy()
   })
 })
